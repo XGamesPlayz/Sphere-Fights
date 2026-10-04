@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sphere Fights</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0c0f14;color:#eee;font:14px system-ui,Arial;overflow:hidden}button,input,select{font:inherit}
+button{border:0;border-radius:8px;background:#30394a;color:#fff;padding:9px 12px;cursor:pointer}button:active{transform:scale(.97)}
+header{height:58px;background:#181d27;border-bottom:1px solid #333b4a;display:flex;align-items:center;gap:8px;padding:8px 12px}
+h1{font-size:20px;margin:0 12px 0 0}#start{background:#24864d}#stop{background:#a83d46}
+#layout{height:calc(100vh - 58px);display:flex}.panel{width:310px;background:#171c25;padding:12px;overflow:auto}.right{border-left:1px solid #333b4a}
+.arena{flex:1;display:flex;align-items:center;justify-content:center;min-width:0}.wrap{position:relative;width:min(78vh,78vw,850px);height:min(78vh,78vw,850px)}
+canvas{width:100%;height:100%;background:#252b35;border:3px solid #697487}.status{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:#111c;padding:6px 12px;border-radius:20px;font-weight:700;white-space:nowrap;pointer-events:none}
+.ball{background:#222936;border-radius:9px;padding:9px;margin:0 0 8px}.balltop{display:flex;align-items:center;gap:8px}.swatch{width:23px;height:23px;border-radius:50%;border:2px solid #fff8}.name{flex:1;font-weight:700}.trash{background:#b8323c;padding:5px 8px}
+.row{display:flex;justify-content:space-between;align-items:center;margin-top:7px;gap:8px}.row input[type=number],.row input[type=text],select{width:125px;background:#11161e;border:1px solid #3d4757;color:#fff;border-radius:6px;padding:5px}
+.row input[type=color]{width:55px;height:30px;padding:2px;background:#111;border:1px solid #555;border-radius:5px}
+.weapon{background:#222936;border-radius:8px;padding:8px;margin:6px 0}.weapon b{font-size:14px}h2{font-size:16px;margin:5px 0 10px}
+.setting{display:flex;justify-content:space-between;align-items:center;background:#222936;border-radius:8px;padding:10px;margin:7px 0}.hint{color:#9ca7b8;font-size:12px;line-height:1.4}
+.modal{display:none;position:fixed;inset:0;background:#000b;align-items:center;justify-content:center;z-index:10}.modal.open{display:flex}
+.modalbox{width:min(600px,90vw);max-height:90vh;overflow:auto;background:#1b212b;border:1px solid #465063;border-radius:13px;padding:16px}.close{float:right}
+.tabs{display:flex;gap:6px;margin-bottom:12px}.tabs button.active{background:#586b8b}.toolrow{display:flex;gap:7px;flex-wrap:wrap}.wallrow{display:flex;gap:7px;align-items:center;background:#222936;padding:8px;border-radius:8px;margin:6px 0}.wallrow input{max-width:85px}
+.arenaList{background:#222936;border-radius:8px;padding:10px;margin:7px 0}.arenaList b{display:block;margin-bottom:5px}
+.danger{background:#9d3540}.good{background:#24864d}.wide{width:100%}
+
+.arenaMakerCanvas{width:100%;max-width:560px;aspect-ratio:1;border:2px solid #697487;background:#252b35;display:block;touch-action:none;cursor:crosshair}
+.makerGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.makerTools{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.search{width:100%;background:#11161e;border:1px solid #3d4757;color:#fff;border-radius:6px;padding:8px}
+.arenaTabs{display:flex;gap:6px;margin:10px 0}.arenaTabs button.active{background:#586b8b}
+.arenaCards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.arenaCard{background:#222936;border:1px solid #394354;border-radius:10px;padding:9px}
+.arenaPreview{width:100%;height:120px;border-radius:7px;border:1px solid #596579;display:block;background:#252b35}
+.arenaCard h3{margin:7px 0 3px;font-size:15px}.arenaCard p{margin:0 0 7px;color:#aab4c3;font-size:12px;min-height:30px}
+.teamBadge{display:inline-block;padding:2px 7px;border-radius:999px;background:#30394a;color:#dfe6f1;font-size:11px;margin-top:4px}
+
+</style>
+</head>
+<body>
+<header><h1>⚔ Sphere Fights</h1><button id="start">Start Round</button><button id="stop">Stop Round</button><button id="settings">Settings</button><span id="round">Round stopped</span></header>
+<div id="layout">
+<aside class="panel"><h2>Balls</h2><div id="balls"></div><button id="add" class="wide">＋ Add Ball</button><h2 style="margin-top:18px">Weapons</h2><div id="weaponInfo"></div></aside>
+<section class="arena"><div class="wrap"><canvas id="game" width="560" height="560"></canvas><div class="status" id="status">Add at least 2 balls</div></div></section>
+<aside class="panel right"><h2>Visual</h2>
+<div class="setting">Eyes <input id="eyes" type="checkbox"></div><div class="setting">Damage indicators <input id="damage" type="checkbox" checked></div>
+<div class="setting">Health text <input id="health" type="checkbox" checked></div><div class="setting">Weapon names <input id="wnames" type="checkbox" checked></div>
+<div class="setting">Arena size <input id="arenaSize" type="number" min="320" max="1000" step="20" value="560" style="width:90px"></div>
+<button id="applyArena" class="wide">Apply Arena Size</button>
+<p class="hint">Balls on the same team cannot damage or knock each other. Dead balls lose collision and show X eyes when eyes are enabled.</p>
+</aside>
+</div>
+
+<div id="bottomTools" style="position:fixed;right:14px;bottom:14px;display:flex;gap:8px;z-index:5">
+<button id="arenaMakerBtn">Arena Maker</button><button id="arenasBtn">Arenas</button>
+</div>
+
+<div class="modal" id="modal"><div class="modalbox"><button class="close" id="close">Close</button><h2>Settings</h2>
+<div class="setting">Eyes <input id="eyes2" type="checkbox"></div><div class="setting">Damage indicators <input id="damage2" type="checkbox" checked></div>
+<div class="setting">Health text <input id="health2" type="checkbox" checked></div><div class="setting">Weapon names <input id="wnames2" type="checkbox" checked></div></div></div>
+
+
+<div class="modal" id="maker"><div class="modalbox" style="width:min(760px,94vw)">
+<button class="close" id="makerClose">Close</button><h2>🛠 Arena Maker</h2>
+<p class="hint">Click-drag on empty space to draw a wall. Click a wall to select it, then drag it to move it. New walls use the current arena background color.</p>
+<div class="makerGrid">
+  <div>
+    <canvas id="makerCanvas" class="arenaMakerCanvas" width="560" height="560"></canvas>
+    <div class="makerTools" style="margin-top:8px">
+      <label>Wall color <input id="wc" type="color" value="#252b35"></label>
+      <button id="deleteWall" class="danger">Delete Selected</button>
+      <button id="clearWalls" class="danger">Clear All Walls</button>
+    </div>
+  </div>
+  <div>
+    <div class="row"><span>Background</span><input id="bgColor" type="color" value="#252b35"></div>
+    <div class="row"><span>Arena size</span><input id="makerSize" type="number" min="320" max="1000" value="560"></div>
+    <div class="row"><span>Title</span><input id="arenaTitle" type="text" value="My Arena"></div>
+    <div class="row"><span>Description</span><input id="arenaDesc" type="text" value="A custom Sphere Fights arena"></div>
+    <hr>
+    <h3>Walls</h3><div id="wallList"></div>
+    <div class="toolrow"><button id="saveArena" class="good">Save Arena</button></div>
+  </div>
+</div>
+</div></div>
+
+<div class="modal" id="arenas"><div class="modalbox" style="width:min(900px,94vw)">
+<button class="close" id="arenasClose">Close</button><h2>🌐 Arenas</h2>
+<p class="hint">Arena sharing is browser/local-storage based on GitHub Pages. Trending is ranked by local subscriber count. Published arenas can also be shared by URL.</p>
+<div class="toolrow"><button id="publishCurrent" class="good">Publish Current Arena</button><button id="copyCode">Copy Arena Code</button></div>
+<div id="publishedCode" class="hint" style="word-break:break-all;margin:8px 0"></div>
+<input id="arenaSearch" class="search" placeholder="Search titles or descriptions...">
+<div class="arenaTabs">
+  <button data-arena-tab="trending" class="active">Trending</button>
+  <button data-arena-tab="subscribed">Subscribed</button>
+  <button data-arena-tab="mine">My Arenas</button>
+</div>
+<div id="arenaList" class="arenaCards"></div>
+</div></div>
+
+
+<script>
+const C=document.getElementById('game'),X=C.getContext('2d'),R=28;
+const W={Hammer:{d:8,spd:.8,rapid:0},Sword:{d:6,spd:1,rapid:0},Knife:{d:4,spd:1,rapid:0},Katana:{d:20,spd:1.35,rapid:0,hp:.55},Chainsaw:{d:2,spd:1,rapid:1},Axe:{d:12,spd:.6,rapid:0},'Baseball Bat':{d:10,spd:1,rapid:0,knock:8},'Reaper Scythe':{d:2,spd:1,rapid:0,grow:2},Scythe:{d:10,spd:1.05,rapid:0},Crowbar:{d:7,spd:1,rapid:0}};
+let balls=JSON.parse(localStorage.getItem('sphereFightsBalls')||'null')||[
+{id:1,name:'Ball 1',color:'#ff4757',team:'Red',max:100,start:100,speed:3.6,weapon:'Sword'},
+{id:2,name:'Ball 2',color:'#3498ff',team:'Blue',max:100,start:100,speed:3.6,weapon:'Hammer'}];
+let next=Math.max(0,...balls.map(b=>b.id))+1,F=[],running=false,roundNo=0,last=0,texts=[];
+let arena={name:'Default Arena',description:'The default Sphere Fights arena',size:560,bg:'#252b35',walls:[]};
+let arenaLibrary=JSON.parse(localStorage.getItem('sphereFightsArenas')||'null')||[];
+let subscribed=JSON.parse(localStorage.getItem('sphereFightsSubscribed')||'null')||[];
+let arenaTab='trending',selectedWall=-1,makerDrag=null;
+const $=x=>document.getElementById(x);
+const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const teamName=b=>String(b.team||('Team '+b.id)).trim()||('Team '+b.id);
+const teamKey=b=>teamName(b).toLowerCase();
+function save(){localStorage.setItem('sphereFightsBalls',JSON.stringify(balls))}
+function saveArenaLibrary(){localStorage.setItem('sphereFightsArenas',JSON.stringify(arenaLibrary));localStorage.setItem('sphereFightsSubscribed',JSON.stringify(subscribed))}
+function render(){
+ $('balls').innerHTML=balls.length?'':'<div class="hint">No balls. You somehow deleted everything 💀</div>';
+ balls.forEach(b=>{
+  let e=document.createElement('div');e.className='ball';
+  e.innerHTML=`<div class="balltop"><span class="swatch" style="background:${safe(b.color)}"></span><span class="name">${safe(b.name)}</span><button class="trash">🗑</button></div>
+  <div class="row"><span>Name</span><input type="text" data-k="name" value="${safe(b.name)}"></div>
+  <div class="row"><span>Team</span><input type="text" data-k="team" value="${safe(teamName(b))}"></div>
+  <div class="row"><span>Weapon</span><select data-k="weapon">${Object.keys(W).map(w=>`<option ${w===b.weapon?'selected':''}>${w}</option>`).join('')}</select></div>
+  <div class="row"><span>Colour</span><input type="color" data-k="color" value="${b.color}"></div>
+  <div class="row"><span>Max HP</span><input type="number" min="1" data-k="max" value="${b.max}"></div>
+  <div class="row"><span>Starting HP</span><input type="number" min="1" data-k="start" value="${b.start}"></div>
+  <div class="row"><span>Speed</span><input type="number" min="0" step=".1" data-k="speed" value="${b.speed}"></div>
+  <span class="teamBadge">Team: ${safe(teamName(b))}</span>`;
+  e.querySelector('.trash').onclick=()=>{balls=balls.filter(x=>x.id!==b.id);save();render()};
+  e.querySelectorAll('[data-k]').forEach(i=>i.onchange=()=>{let k=i.dataset.k;b[k]=i.type==='number'?+i.value:i.value;if(k==='start'||k==='max')b.start=Math.min(b.start,b.max);save();render()});
+  $('balls').appendChild(e)
+ });
+ $('weaponInfo').innerHTML=Object.entries(W).map(([n,w])=>`<div class="weapon"><b>${n}</b><br>${w.d} damage${w.rapid?' • rapid repeated damage':''}<br>${n==='Hammer'?'20% slower':n==='Knife'?'10% lighter':n==='Katana'?'35% faster • 45% max HP':n==='Axe'?'40% slower':n==='Chainsaw'?'rapid damage':n==='Baseball Bat'?'10 damage • sends opponent flying':n==='Reaper Scythe'?'Starts at 2 damage • +2 per hit':n==='Scythe'?'10 damage • +5% speed':n==='Crowbar'?'7 damage':'No special effect'}</div>`).join('');
+}
+$('add').onclick=()=>{balls.push({id:next++,name:'Ball '+(balls.length+1),color:'#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0'),team:'Team '+(balls.length+1),max:100,start:100,speed:3.6,weapon:'Sword'});save();render()};
+function resizeArena(size){
+ size=Math.max(320,Math.min(1000,Number(size)||560));arena.size=size;C.width=size;C.height=size;
+ $('arenaSize').value=size;$('makerSize').value=size;syncMakerCanvas();
+ $('status').textContent=running?'FIGHT!':'Arena '+size+' × '+size;
+}
+$('applyArena').onclick=()=>resizeArena($('arenaSize').value);
+function teamOf(f,g){return teamKey(f.b)===teamKey(g.b)}
+function spawn(){
+ let usable=balls.map(b=>{let a=Math.random()*6.28,w=W[b.weapon],max=b.max*(w.hp||1),s=b.speed*w.spd/(w.weight||1);return {b,x:70+Math.random()*Math.max(1,arena.size-140),y:70+Math.random()*Math.max(1,arena.size-140),vx:Math.cos(a)*s,vy:Math.sin(a)*s,a:Math.random()*6.28,av:(Math.random()-.5)*.11,hp:Math.min(b.start,max),max,r:R,cd:0,alive:true,weaponDamage:2}});
+ F=usable;for(let q=0;q<80;q++)pair();texts=[];
+}
+function pair(){
+ for(let i=0;i<F.length;i++)for(let j=i+1;j<F.length;j++){let a=F[i],b=F[j];if(!a.alive||!b.alive)continue;let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;if(d<a.r+b.r){let nx=dx/d,ny=dy/d,o=(a.r+b.r-d)/2;a.x-=nx*o;a.y-=ny*o;b.x+=nx*o;b.y+=ny*o;let rv=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(rv<0){let p=-rv;a.vx-=nx*p;a.vy-=ny*p;b.vx+=nx*p;b.vy+=ny*p}}}
+}
+function wp(f){let off=f.r+7,len=49;return{x:f.x+Math.cos(f.a)*off,y:f.y+Math.sin(f.a)*off,tx:f.x+Math.cos(f.a)*(off+len),ty:f.y+Math.sin(f.a)*(off+len)}}
+function seg(ax,ay,bx,by,cx,cy,r){let dx=bx-ax,dy=by-ay,t=((cx-ax)*dx+(cy-ay)*dy)/(dx*dx+dy*dy||1);t=Math.max(0,Math.min(1,t));return Math.hypot(cx-(ax+t*dx),cy-(ay+t*dy))<r}
+function hurt(f,d){f.hp-=d;if($('damage').checked)texts.push({x:f.x,y:f.y-35,s:'-'+d,t:42});if(f.hp<=0){f.hp=0;f.alive=false;f.vx=0;f.vy=0}}
+function combat(){
+ for(let i=0;i<F.length;i++)for(let j=i+1;j<F.length;j++){let a=F[i],b=F[j];if(!a.alive||!b.alive||teamOf(a,b))continue;let ap=wp(a),bp=wp(b),wa=W[a.b.weapon],wb=W[b.b.weapon];
+  if(seg(ap.x,ap.y,ap.tx,ap.ty,bp.x,bp.y,11)||seg(bp.x,bp.y,bp.tx,bp.ty,ap.x,ap.y,11)){let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,nx=dx/d,ny=dy/d;a.vx-=nx*.3;b.vx+=nx*.3;a.vy-=ny*.3;b.vy+=ny*.3;a.av*=-.95;b.av*=-.95}
+  if(a.cd<=0&&seg(ap.x,ap.y,ap.tx,ap.ty,b.x,b.y,b.r+7)){let d=wa.grow?(a.weaponDamage||2):wa.d;hurt(b,d);if(wa.grow)a.weaponDamage=d+wa.grow;if(wa.knock){b.vx+=Math.cos(a.a)*wa.knock;b.vy+=Math.sin(a.a)*wa.knock}a.cd=wa.rapid?3:18}
+  if(b.cd<=0&&seg(bp.x,bp.y,bp.tx,bp.ty,a.x,a.y,a.r+7)){let d=wb.grow?(b.weaponDamage||2):wb.d;hurt(a,d);if(wb.grow)b.weaponDamage=d+wb.grow;if(wb.knock){a.vx+=Math.cos(b.a)*wb.knock;a.vy+=Math.sin(b.a)*wb.knock}b.cd=wb.rapid?3:18}
+ }
+}
+function circleRect(f,w){let cx=Math.max(w.x,Math.min(f.x,w.x+w.w)),cy=Math.max(w.y,Math.min(f.y,w.y+w.h));return Math.hypot(f.x-cx,f.y-cy)<f.r}
+function wallPhysics(f){
+ for(const w of arena.walls){if(!circleRect(f,w))continue;let left=Math.abs(f.x-w.x),right=Math.abs(f.x-(w.x+w.w)),top=Math.abs(f.y-w.y),bottom=Math.abs(f.y-(w.y+w.h)),m=Math.min(left,right,top,bottom);
+  if(m===left){f.x=w.x-f.r;f.vx=-Math.abs(f.vx)}else if(m===right){f.x=w.x+w.w+f.r;f.vx=Math.abs(f.vx)}else if(m===top){f.y=w.y-f.r;f.vy=-Math.abs(f.vy)}else{f.y=w.y+w.h+f.r;f.vy=Math.abs(f.vy)}
+ }
+}
+function walls(f){
+ if(f.x-f.r<3){f.x=f.r+3;f.vx=Math.abs(f.vx)}if(f.x+f.r>arena.size-3){f.x=arena.size-3-f.r;f.vx=-Math.abs(f.vx)}
+ if(f.y-f.r<3){f.y=f.r+3;f.vy=Math.abs(f.vy)}if(f.y+f.r>arena.size-3){f.y=arena.size-3-f.r;f.vy=-Math.abs(f.vy)}
+ let p=wp(f);if(p.tx<3||p.tx>arena.size-3){f.a=Math.PI-f.a;f.av*=-.8}if(p.ty<3||p.ty>arena.size-3){f.a=-f.a;f.av*=-.8}wallPhysics(f)
+}
+function weapon(f){let p=wp(f),name=f.b.weapon;X.save();X.translate(p.x,p.y);X.rotate(f.a);X.lineCap='round';X.lineJoin='round';
+ if(name==='Hammer'){X.fillStyle='#171a20';X.fillRect(8,-4,38,8);X.fillStyle='#6e7685';X.fillRect(38,-16,18,32);X.fillStyle='#c9d0da';X.fillRect(42,-12,12,24)}
+ else if(name==='Sword'||name==='Katana'){let g=X.createLinearGradient(0,0,55,0);g.addColorStop(0,'#66717d');g.addColorStop(.5,'#f5f8ff');g.addColorStop(1,'#7e8995');X.strokeStyle=g;X.lineWidth=8;X.beginPath();X.moveTo(2,0);X.lineTo(55,0);X.stroke();X.strokeStyle='#d3a83c';X.lineWidth=4;X.beginPath();X.moveTo(5,-11);X.lineTo(5,11);X.stroke();X.fillStyle='#553523';X.fillRect(-3,-5,15,10)}
+ else if(name==='Knife'){X.fillStyle='#b9c3cf';X.beginPath();X.moveTo(5,-5);X.lineTo(45,0);X.lineTo(5,5);X.closePath();X.fill();X.fillStyle='#613a29';X.fillRect(-3,-5,14,10)}
+ else if(name==='Axe'){X.strokeStyle='#75472b';X.lineWidth=7;X.beginPath();X.moveTo(0,0);X.lineTo(48,0);X.stroke();X.fillStyle='#aab5c2';X.beginPath();X.moveTo(36,-22);X.quadraticCurveTo(62,-16,54,0);X.quadraticCurveTo(62,16,36,22);X.closePath();X.fill()}
+ else if(name==='Chainsaw'){X.fillStyle='#d4a72c';X.roundRect(2,-9,50,18,5);X.fill();X.strokeStyle='#20242a';X.lineWidth=5;X.beginPath();X.moveTo(45,-9);X.lineTo(61,-9);X.lineTo(61,9);X.lineTo(45,9);X.stroke();for(let z=6;z<45;z+=8){X.fillStyle='#222';X.beginPath();X.moveTo(z,-11);X.lineTo(z+5,-15);X.lineTo(z+8,-11);X.lineTo(z+3,-7);X.fill()}}
+ else if(name==='Baseball Bat'){let g=X.createLinearGradient(0,-5,0,5);g.addColorStop(0,'#b66b3d');g.addColorStop(.5,'#e0a064');g.addColorStop(1,'#704127');X.strokeStyle=g;X.lineWidth=13;X.beginPath();X.moveTo(2,0);X.lineTo(54,0);X.stroke();X.strokeStyle='#333';X.lineWidth=4;X.beginPath();X.moveTo(2,-7);X.lineTo(14,-7);X.stroke()}
+ else if(name==='Reaper Scythe'||name==='Scythe'){X.strokeStyle='#171a22';X.lineWidth=8;X.beginPath();X.moveTo(0,0);X.lineTo(44,0);X.stroke();X.strokeStyle='#4b5362';X.lineWidth=3;X.beginPath();X.moveTo(0,-5);X.lineTo(44,-5);X.stroke();X.fillStyle=name==='Reaper Scythe'?'#9aa8bd':'#d4dbe5';X.beginPath();X.moveTo(39,-4);X.quadraticCurveTo(50,-31,72,-22);X.quadraticCurveTo(62,-7,45,5);X.quadraticCurveTo(57,-9,64,-18);X.quadraticCurveTo(51,-18,44,-1);X.closePath();X.fill();X.strokeStyle=name==='Reaper Scythe'?'#b9d1ff':'#f2f6ff';X.lineWidth=3;X.beginPath();X.moveTo(45,-4);X.quadraticCurveTo(57,-20,68,-19);X.stroke();X.fillStyle='#202632';X.beginPath();X.arc(5,0,6,0,7);X.fill()}
+ else if(name==='Crowbar'){X.strokeStyle='#8b1e2d';X.lineWidth=8;X.beginPath();X.moveTo(0,0);X.lineTo(43,0);X.stroke();X.strokeStyle='#d6dce4';X.lineWidth=6;X.beginPath();X.moveTo(38,0);X.quadraticCurveTo(53,-3,56,-14);X.stroke()}
+ X.restore()
+}
+function ball(f){X.save();X.translate(f.x,f.y);X.fillStyle=f.b.color;X.globalAlpha=f.alive?1:.42;X.beginPath();X.arc(0,0,f.r,0,7);X.fill();X.strokeStyle='#fff6';X.stroke();
+ if($('eyes').checked){if(!f.alive){X.strokeStyle='#171a20';X.lineWidth=5;X.beginPath();X.moveTo(-12,-12);X.lineTo(-3,-3);X.moveTo(-3,-12);X.lineTo(-12,-3);X.moveTo(3,-12);X.lineTo(12,-3);X.moveTo(12,-12);X.lineTo(3,-3);X.stroke()}else{let t=F.find(x=>x!==f&&x.alive&&!teamOf(x,f)),ang=t?Math.atan2(t.y-f.y,t.x-f.x):0;for(let side of [-1,1]){let ex=side*9,ey=-8;X.fillStyle='white';X.beginPath();X.arc(ex,ey,7,0,7);X.fill();X.fillStyle='#111';X.beginPath();X.arc(ex+Math.cos(ang)*3,ey+Math.sin(ang)*3,3,0,7);X.fill()}}}
+ if($('health').checked){X.globalAlpha=f.alive?1:.7;X.fillStyle='white';X.textAlign='center';X.textBaseline='middle';X.font=`bold ${$('eyes').checked?11:14}px system-ui`;X.fillText(Math.ceil(f.hp),0,$('eyes').checked?9:0)}
+ if($('wnames').checked){X.font='9px system-ui';X.textAlign='center';X.fillStyle='#fff9';X.fillText(f.b.weapon,0,46)}X.restore()}
+function drawArena(){X.fillStyle=arena.bg;X.fillRect(0,0,arena.size,arena.size);for(let i=40;i<arena.size;i+=40){X.fillStyle='#ffffff08';X.fillRect(i,0,1,arena.size);X.fillRect(0,i,arena.size,1)}for(const w of arena.walls){X.fillStyle=w.color;X.fillRect(w.x,w.y,w.w,w.h);X.strokeStyle='#fff8';X.strokeRect(w.x,w.y,w.w,w.h)}}
+function loop(t){
+ let dt=Math.min((t-last)/16.67||1,2);last=t;drawArena();
+ if(running){
+  F.forEach(f=>{if(!f.alive)return;f.x+=f.vx*dt;f.y+=f.vy*dt;f.a+=f.av*dt;f.cd-=dt;walls(f)});
+  pair();combat();
+  let teams=[...new Set(F.filter(f=>f.alive).map(f=>teamKey(f.b)))];
+  if(teams.length<=1){
+   running=false;let live=F.filter(f=>f.alive);
+   if(live.length){
+    let key=teamKey(live[0].b),team=teamName(live[0].b),members=F.filter(f=>teamKey(f.b)===key);
+    let hp=members.map(f=>`${f.b.name}: ${Math.ceil(f.hp)} HP`).join(' • ');
+    $('status').textContent=`${team} wins! 🏆 — ${hp}`;$('round').textContent='Round ended';
+   }else{$('status').textContent='Draw!';$('round').textContent='Round ended'}
+  }
+ }
+ F.forEach(f=>{weapon(f);ball(f)});
+ texts.forEach(q=>{q.y-=.7;q.t--;X.globalAlpha=q.t/42;X.fillStyle='white';X.font='bold 16px system-ui';X.textAlign='center';X.fillText(q.s,q.x,q.y);X.globalAlpha=1});
+ texts=texts.filter(q=>q.t>0);requestAnimationFrame(loop)
+}
+$('start').onclick=()=>{if(balls.length<2){$('status').textContent='Need at least 2 balls';return}roundNo++;spawn();running=true;$('round').textContent='Round '+roundNo+' running';$('status').textContent='FIGHT!'};
+$('stop').onclick=()=>{running=false;$('round').textContent='Round stopped';$('status').textContent='Round stopped'};
+$('settings').onclick=()=>$('modal').classList.add('open');$('close').onclick=()=>$('modal').classList.remove('open');
+function sync(a,b){$(a).onchange=()=>$(b).checked=$(a).checked;$(b).onchange=()=>$(a).checked=$(b).checked}
+sync('eyes','eyes2');sync('damage','damage2');sync('health','health2');sync('wnames','wnames2');
+
+/* ---------- Arena Maker ---------- */
+const MC=$('makerCanvas'),MX=MC.getContext('2d');
+function makerScale(){return MC.width/arena.size}
+function syncMakerCanvas(){MC.width=arena.size;MC.height=arena.size;renderMaker()}
+function makerPoint(ev){let r=MC.getBoundingClientRect(),sx=arena.size/r.width,sy=arena.size/r.height;return{x:(ev.clientX-r.left)*sx,y:(ev.clientY-r.top)*sy}}
+function wallAt(x,y){for(let i=arena.walls.length-1;i>=0;i--){let w=arena.walls[i];if(x>=w.x&&x<=w.x+w.w&&y>=w.y&&y<=w.y+w.h)return i}return -1}
+function renderMaker(){
+ if(!MC)return;MX.clearRect(0,0,MC.width,MC.height);MX.fillStyle=arena.bg;MX.fillRect(0,0,MC.width,MC.height);
+ for(let i=40;i<arena.size;i+=40){MX.fillStyle='#ffffff08';MX.fillRect(i,0,1,arena.size);MX.fillRect(0,i,arena.size,1)}
+ arena.walls.forEach((w,i)=>{MX.fillStyle=w.color;MX.fillRect(w.x,w.y,w.w,w.h);MX.strokeStyle=i===selectedWall?'#fff':'#fff8';MX.lineWidth=i===selectedWall?3:1;MX.strokeRect(w.x,w.y,w.w,w.h)});
+ if(makerDrag&&makerDrag.mode==='draw'){let d=makerDrag,start=d.start;let x=Math.min(start.x,d.now.x),y=Math.min(start.y,d.now.y),w=Math.abs(d.now.x-start.x),h=Math.abs(d.now.y-start.y);MX.fillStyle=arena.bg;MX.fillRect(x,y,w,h);MX.strokeStyle='#fff';MX.setLineDash([6,4]);MX.strokeRect(x,y,w,h);MX.setLineDash([])}
+}
+MC.addEventListener('pointerdown',ev=>{
+ ev.preventDefault();let p=makerPoint(ev),idx=wallAt(p.x,p.y);
+ if(idx>=0){selectedWall=idx;let w=arena.walls[idx];makerDrag={mode:'move',idx,offsetX:p.x-w.x,offsetY:p.y-w.y};$('wc').value=w.color;renderWallList();renderMaker();MC.setPointerCapture(ev.pointerId)}
+ else{selectedWall=-1;makerDrag={mode:'draw',start:p,now:p};renderWallList();renderMaker();MC.setPointerCapture(ev.pointerId)}
+});
+MC.addEventListener('pointermove',ev=>{
+ if(!makerDrag)return;let p=makerPoint(ev);makerDrag.now=p;
+ if(makerDrag.mode==='move'){let w=arena.walls[makerDrag.idx];w.x=Math.max(0,Math.min(arena.size-w.w,p.x-makerDrag.offsetX));w.y=Math.max(0,Math.min(arena.size-w.h,p.y-makerDrag.offsetY))}
+ renderMaker();renderWallList()
+});
+MC.addEventListener('pointerup',ev=>{
+ if(!makerDrag)return;let d=makerDrag;
+ if(d.mode==='draw'){let x=Math.min(d.start.x,d.now.x),y=Math.min(d.start.y,d.now.y),w=Math.abs(d.now.x-d.start.x),h=Math.abs(d.now.y-d.start.y);if(w>=6&&h>=6){arena.walls.push({x,y,w,h,color:arena.bg});selectedWall=arena.walls.length-1;$('wc').value=arena.bg}}
+ makerDrag=null;renderMaker();renderWallList()
+});
+MC.addEventListener('pointercancel',()=>{makerDrag=null;renderMaker()});
+$('wc').oninput=()=>{if(selectedWall>=0&&arena.walls[selectedWall]){arena.walls[selectedWall].color=$('wc').value;renderMaker();renderWallList()}};
+$('deleteWall').onclick=()=>{if(selectedWall>=0){arena.walls.splice(selectedWall,1);selectedWall=-1;renderMaker();renderWallList()}};
+$('clearWalls').onclick=()=>{arena.walls=[];selectedWall=-1;renderMaker();renderWallList()};
+$('bgColor').oninput=()=>{arena.bg=$('bgColor').value;renderMaker()};
+$('makerSize').onchange=()=>{let old=arena.size,newSize=Math.max(320,Math.min(1000,+$('makerSize').value||560));let scale=newSize/old;arena.walls.forEach(w=>{w.x*=scale;w.y*=scale;w.w*=scale;w.h*=scale});arena.size=newSize;resizeArena(newSize)};
+$('arenaTitle').oninput=()=>{arena.name=$('arenaTitle').value};
+$('arenaDesc').oninput=()=>{arena.description=$('arenaDesc').value};
+function renderWallList(){
+ $('wallList').innerHTML=arena.walls.length?arena.walls.map((w,i)=>`<div class="wallrow"><span>#${i+1}</span><span>${Math.round(w.w)}×${Math.round(w.h)}</span><span style="width:18px;height:18px;background:${safe(w.color)};border-radius:4px"></span><button data-select-wall="${i}" class="${i===selectedWall?'good':''}">${i===selectedWall?'Selected':'Select'}</button></div>`).join(''):'<div class="hint">No walls yet. Drag on the arena to make one.</div>';
+ document.querySelectorAll('[data-select-wall]').forEach(b=>b.onclick=()=>{selectedWall=+b.dataset.selectWall;$('wc').value=arena.walls[selectedWall]?.color||arena.bg;renderWallList();renderMaker()})
+}
+$('arenaMakerBtn').onclick=()=>{$('maker').classList.add('open');$('bgColor').value=arena.bg;$('makerSize').value=arena.size;$('arenaTitle').value=arena.name||'My Arena';$('arenaDesc').value=arena.description||'';selectedWall=-1;syncMakerCanvas();renderWallList()};
+$('makerClose').onclick=()=>$('maker').classList.remove('open');
+$('saveArena').onclick=()=>{
+ let name=($('arenaTitle').value||'My Arena').trim();arena.name=name;arena.description=($('arenaDesc').value||'').trim();
+ let copy=JSON.parse(JSON.stringify(arena)),id='mine-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),idx=arenaLibrary.findIndex(a=>a.id===arena.id&&a.owner==='You');
+ if(!arena.id||!String(arena.id).startsWith('mine-'))arena.id=id;
+ copy.id=arena.id;copy.owner='You';copy.subscribers=copy.subscribers||0;copy.updated=Date.now();
+ let found=arenaLibrary.findIndex(a=>a.id===copy.id);if(found>=0)arenaLibrary[found]=copy;else arenaLibrary.push(copy);saveArenaLibrary();
+ $('status').textContent='Saved arena: '+arena.name;renderArenaList()
+};
+
+/* ---------- Arenas ---------- */
+function encodeArena(a){return btoa(unescape(encodeURIComponent(JSON.stringify(a))))}
+function decodeArena(s){return JSON.parse(decodeURIComponent(escape(atob(s))))}
+function arenaPreview(a){
+ let c=document.createElement('canvas'),s=280;c.width=c.height=s;let x=c.getContext('2d'),scale=s/a.size;
+ x.fillStyle=a.bg;x.fillRect(0,0,s,s);for(let i=40;i<a.size;i+=40){x.fillStyle='#ffffff08';x.fillRect(i*scale,0,1,s);x.fillRect(0,i*scale,s,1)}
+ (a.walls||[]).forEach(w=>{x.fillStyle=w.color;x.fillRect(w.x*scale,w.y*scale,w.w*scale,w.h*scale);x.strokeStyle='#fff8';x.strokeRect(w.x*scale,w.y*scale,w.w*scale,w.h*scale)});
+ return c.toDataURL('image/png')
+}
+function arenaId(a){return a.id||('legacy-'+a.name)}
+function publish(){
+ let copy=JSON.parse(JSON.stringify(arena));copy.id='pub-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);copy.owner='You';copy.subscribers=copy.subscribers||0;copy.updated=Date.now();
+ let code=encodeArena(copy),url=location.href.split('#')[0]+'#arena='+code;
+ $('publishedCode').textContent=url;navigator.clipboard?.writeText(url).catch(()=>{});location.hash='arena='+code;
+}
+function activateArena(a){
+ arena=JSON.parse(JSON.stringify(a));resizeArena(arena.size);$('bgColor').value=arena.bg;$('makerSize').value=arena.size;$('arenaTitle').value=arena.name||'My Arena';$('arenaDesc').value=arena.description||'';selectedWall=-1;renderWallList();renderMaker();$('status').textContent='Arena "'+arena.name+'" activated'
+}
+function renderArenaList(){
+ let q=($('arenaSearch').value||'').trim().toLowerCase(),arr=arenaLibrary.slice();
+ arr.forEach(a=>{if(!a.id)a.id='legacy-'+a.name});
+ if(arenaTab==='subscribed')arr=arr.filter(a=>subscribed.includes(arenaId(a)));
+ if(arenaTab==='mine')arr=arr.filter(a=>a.owner==='You');
+ if(q)arr=arr.filter(a=>String(a.name||'').toLowerCase().includes(q)||String(a.description||'').toLowerCase().includes(q));
+ if(arenaTab==='trending')arr.sort((a,b)=>(b.subscribers||0)-(a.subscribers||0)||(b.updated||0)-(a.updated||0));else arr.sort((a,b)=>(b.updated||0)-(a.updated||0));
+ $('arenaList').innerHTML=arr.length?arr.map((a,i)=>{
+   let id=arenaId(a),sub=subscribed.includes(id),mine=a.owner==='You';
+   return `<div class="arenaCard"><img class="arenaPreview" src="${arenaPreview(a)}"><h3>${safe(a.name||'Untitled Arena')}</h3><p>${safe(a.description||'No description.')}</p><div class="hint">${a.size}×${a.size} • ${(a.walls||[]).length} wall(s) • ${a.subscribers||0} subscriber(s)</div><div class="toolrow" style="margin-top:8px"><button data-arena-act="${safe(id)}" class="good">Activate</button><button data-arena-sub="${safe(id)}">${sub?'Unsubscribe':'Subscribe'}</button>${mine?'<button data-arena-del="'+safe(id)+'" class="danger">Delete</button>':''}</div></div>`
+ }).join(''):'<div class="hint">No arenas match this tab/search.</div>';
+ document.querySelectorAll('[data-arena-act]').forEach(b=>b.onclick=()=>{let a=arenaLibrary.find(x=>arenaId(x)===b.dataset.arenaAct);if(a)activateArena(a)});
+ document.querySelectorAll('[data-arena-sub]').forEach(b=>b.onclick=()=>{let id=b.dataset.arenaSub;if(subscribed.includes(id))subscribed=subscribed.filter(x=>x!==id);else{subscribed.push(id);let a=arenaLibrary.find(x=>arenaId(x)===id);if(a)a.subscribers=(a.subscribers||0)+1}saveArenaLibrary();renderArenaList()});
+ document.querySelectorAll('[data-arena-del]').forEach(b=>b.onclick=()=>{arenaLibrary=arenaLibrary.filter(x=>arenaId(x)!==b.dataset.arenaDel);subscribed=subscribed.filter(x=>x!==b.dataset.arenaDel);saveArenaLibrary();renderArenaList()});
+}
+document.querySelectorAll('[data-arena-tab]').forEach(b=>b.onclick=()=>{arenaTab=b.dataset.arenaTab;document.querySelectorAll('[data-arena-tab]').forEach(x=>x.classList.toggle('active',x===b));renderArenaList()});
+$('arenaSearch').oninput=renderArenaList;
+$('arenasBtn').onclick=()=>{$('arenas').classList.add('open');renderArenaList()};
+$('arenasClose').onclick=()=>$('arenas').classList.remove('open');
+$('publishCurrent').onclick=()=>publish();
+$('copyCode').onclick=()=>{let code=encodeArena(arena);navigator.clipboard?.writeText(code).catch(()=>{});$('publishedCode').textContent=code};
+if(location.hash.startsWith('#arena=')){try{let incoming=decodeArena(location.hash.slice(7));activateArena(incoming)}catch(e){console.warn('Invalid arena link',e)}}
+resizeArena(arena.size);render();renderWallList();requestAnimationFrame(loop);
+</script>
+
+</body></html>
